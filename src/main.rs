@@ -3,12 +3,14 @@ use std::{error, io, thread};
 
 use crossterm::event::{Event, KeyCode};
 use crossterm::{cursor, event, terminal, ExecutableCommand};
-use invaders::frame::new_frame;
+use invaders::frame::{new_frame, Drawable};
+use invaders::player::Player;
 use invaders::{frame, render};
 use rusty_audio::Audio;
 use std::sync::mpsc;
 use std::time::Duration;
 
+#[rustfmt::skip]
 fn main() -> Result<(), Box<dyn Error>> {
 	// Setup audio
 	let mut audio = Audio::new();
@@ -44,25 +46,27 @@ fn main() -> Result<(), Box<dyn Error>> {
 	});
 
 	// Start game loop
+	let mut player = Player::new();
+
 	'gameloop: loop {
 		// Per-frame init
-		let curr_frame = new_frame();
+		let mut curr_frame = new_frame();
 
 		// Handle user input
 		while event::poll(Duration::default())? {
 			if let Event::Key(key_event) = event::read()? {
 				use KeyCode::*;
 				match key_event.code {
-					Esc | Char('q') => {
-						audio.play("lose");
-						break 'gameloop;
-					}
-					_ => {}
+					Left | Char('a')  => player.move_left(),
+					Right | Char('d') => player.move_right(),
+					Esc | Char('q')   => { audio.play("lose"); break 'gameloop; },
+					_                 => {},
 				}
 			}
 		}
 
 		// Draw & render
+		player.draw(&mut curr_frame);
 		let _ = render_tx.send(curr_frame);
 		thread::sleep(Duration::from_millis(8));
 	}
